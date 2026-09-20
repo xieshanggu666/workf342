@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自动工厂 · 流水线模拟器</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ============ 顶栏 ============ -->
+<header id="topbar">
+  <div class="tb-left">
+    <span class="logo">⚙ 自动工厂</span>
+    <span id="tb-time" class="tb-item">00:00</span>
+  </div>
+  <div class="tb-center">
+    <div class="speed-btns" id="speed-btns">
+      <button data-speed="0.5">0.5×</button>
+      <button data-speed="1" class="active">1×</button>
+      <button data-speed="2">2×</button>
+      <button data-speed="4">4×</button>
+    </div>
+    <button id="btn-pause" class="btn-plain" title="暂停 (空格)">⏸ 暂停</button>
+  </div>
+  <div class="tb-right">
+    <div class="research-bar" id="research-bar" title="当前研究">
+      <span class="rb-label" id="rb-label">研究: 未选择</span>
+      <div class="rb-track"><div class="rb-fill" id="rb-fill"></div></div>
+    </div>
+    <button id="btn-blueprint" class="btn-plain" title="蓝图：框选产线生成施工计划 (B)">📐 蓝图</button>
+    <button id="btn-upgrade" class="btn-plain" title="原地升级：框选产线批量替换为已解锁的高级建筑 (U)">⬆ 升级</button>
+    <button id="btn-pipeline" class="btn-plain" title="一键流水线：选择预设产线直接铺在地图上 (P)">⚡ 流水线</button>
+    <button id="btn-tech" class="btn-plain" title="科技树 (T)">🔬 科技</button>
+    <button id="btn-menu" class="btn-plain" title="菜单">☰</button>
+  </div>
+</header>
+
+<!-- 物品资源条 -->
+<div id="item-strip"></div>
+
+<!-- ============ 主区域 ============ -->
+<div id="layout">
+  <!-- 左侧建筑工具栏 -->
+  <nav id="toolbar">
+    <div class="tb-cats" id="tb-cats"></div>
+    <div class="tb-buildings" id="tb-buildings"></div>
+    <div class="tb-hint" id="tb-hint"></div>
+  </nav>
+
+  <!-- 地图画布 -->
+  <main id="map-wrap">
+    <canvas id="map-canvas"></canvas>
+    <div id="bp-hint" class="hidden"></div>
+    <div id="map-tooltip" class="hidden"></div>
+  </main>
+
+  <!-- 右侧面板 -->
+  <aside id="sidepanel">
+    <div class="sp-tabs" id="sp-tabs">
+      <button data-tab="info" class="active">信息</button>
+      <button data-tab="stats">统计</button>
+      <button data-tab="build">施工</button>
+      <button data-tab="log">日志</button>
+    </div>
+    <div class="sp-body" id="sp-body"></div>
+  </aside>
+</div>
+
+<!-- ============ 弹窗容器 ============ -->
+<div id="modal-root"></div>
+
+<!-- ============ 脚本（顺序加载，命名空间 FG） ============ -->
+<script src="js/core/config.js"></script>
+<script src="js/core/utils.js"></script>
+<script src="js/data/items.js"></script>
+<script src="js/data/recipes.js"></script>
+<script src="js/data/buildings.js"></script>
+<script src="js/data/research.js"></script>
+<script src="js/data/maps.js"></script>
+<script src="js/data/pipelines.js"></script>
+<script src="js/game/map.js"></script>
+<script src="js/game/scheduler.js"></script>
+<script src="js/game/railway.js"></script>
+<script src="js/game/sim.js"></script>
+<script src="js/game/researchmgr.js"></script>
+<script src="js/game/stats.js"></script>
+<script src="js/game/save.js"></script>
+<script src="js/game/blueprint.js"></script>
+<script src="js/game/game.js"></script>
+<script src="js/ui/renderer.js"></script>
+<script src="js/ui/toolbar.js"></script>
+<script src="js/ui/panels.js"></script>
+<script src="js/ui/tech.js"></script>
+<script src="js/ui/modals.js"></script>
+<script src="js/ui/topbar.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
