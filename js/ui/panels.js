@@ -27,6 +27,8 @@ FG.Panels = (() => {
     FG.Events.on('recipe:change', () => { render(); });
     FG.Events.on('construction:change', () => { if (activeTab === 'build') render(); });
     FG.Events.on('blueprint:change', () => { if (activeTab === 'build') render(); });
+    FG.Events.on('contracts:change', () => { if (activeTab === 'contract' || activeTab === 'info') render(); });
+    FG.Events.on('contracts:complete', () => { render(); });
     FG.Events.on('message', () => { if (activeTab === 'log') render(); });
   }
 
@@ -35,6 +37,7 @@ FG.Panels = (() => {
     if (activeTab === 'info') renderInfo();
     else if (activeTab === 'stats') renderStats();
     else if (activeTab === 'build') renderBuild();
+    else if (activeTab === 'contract') renderContract();
     else if (activeTab === 'log') renderLog();
     bindActions();
   }
@@ -51,6 +54,7 @@ FG.Panels = (() => {
           <div class="k">建筑数</div><div class="v">${game.totalBuildings()}</div>
           <div class="k">列车</div><div class="v">${ry ? ry.trains.length : 0}</div>
           <div class="k">火车站</div><div class="v">${ry ? ry.stationList().length : 0}</div>
+          <div class="k">供货合同</div><div class="v">${game.contracts ? game.contracts.active.length : 0}</div>
           <div class="k">已研究</div><div class="v">${game.research.completed.size} / ${FG.Research.list().length}</div>
           <div class="k">游戏时间</div><div class="v">${FG.Utils.fmtTime(game.playTime)}</div>
         </div>
@@ -208,6 +212,9 @@ FG.Panels = (() => {
       h += `</div>`;
     }
 
+    // 交付站：供货合同邀约 / 进行中合同（锁付台账独立于站货位显示）
+    if (b.def.delivery) h += deliveryStationInfo(b);
+
     // 机务段：发车
     if (b.def.railDepot) {
       const trains = game.railway.trains;
@@ -233,6 +240,112 @@ FG.Panels = (() => {
     return `<div class="slot-row${warn ? ' slot-warn' : ''}" title="${warn ? '当前配方不再需要，机械臂会将其运走' : ''}"><span class="sl-name">${name}</span>
       <div class="sl-bar"><div class="fill" style="width:${Math.min(100, s.count / s.cap * 100).toFixed(0)}%"></div></div>
       <span class="sl-count">${FG.Utils.fmtNum(s.count)}/${FG.Utils.fmtNum(s.cap)}</span></div>`;
+  }
+
+  // ================= 供货合同 =================
+  function rewardTxt(reward) {
+    return Object.keys(reward).map(k => FG.Items.byId(k).name + '×' + reward[k]).join('　');
+  }
+
+  /** 交付站信息面板：进行中合同（独立锁付台账）或合同邀约列表 */
+  function deliveryStationInfo(b) {
+    const cm = FG.game.contracts;
+    const c = cm.contractAt(b);
+    let h = `<div class="panel-sec"><h4>🤝 供货合同</h4>`;
+    if (c) {
+      const p = Math.min(1, c.delivered / c.qty);
+      const remain = cm.remainSec(c);
+      const late = remain <= 30;
+      h += `<div class="bp-plan">
+        <div class="bp-head"><span>${FG.Items.byId(c.item).name} × ${c.qty}</span>
+          <span class="plan-st ${late ? 'st-blocked' : 'st-active'}">剩 ${FG.Utils.fmtTime(remain)}</span></div>
+        <div class="progress-bar"><div class="fill" style="width:${(p * 100).toFixed(1)}%;background:${late ? '#e05c5c' : '#37c9b0'}"></div></div>
+        <div style="font-size:11px;color:var(--text-dim)">已锁付 ${c.delivered}/${c.qty}（列车到站卸货自动计入，不进站货位）</div>
+        <div style="font-size:11px;margin-top:3px">奖励：<b style="color:var(--accent2)">${rewardTxt(c.reward)}</b>（完成入站货位）</div>
+        <div class="action-row" style="margin-top:5px">
+          <button data-contract-cancel="${c.id}" class="danger">取消合同（释放锁付）</button>
+        </div>
+      </div>`;
+    } else {
+      const offers = cm.getOffers(b);
+      h += `<div style="font-size:11px;color:var(--text-dim);line-height:1.6;margin-bottom:6px">
+        承接后用<b>列车分批</b>把货物运抵本站。卸入的合同货物立即锁付、独立记账（生产/施工不可动用）；交齐发放科研物资，逾期/取消则释放锁付货物。</div>`;
+      if (!offers.length) {
+        h += `<div style="color:var(--text-dim);font-size:11px">暂无可接合同</div>`;
+      }
+      offers.forEach((o, i) => {
+        h += `<div class="bp-plan" style="margin-bottom:6px">
+          <div class="bp-head"><span>${FG.Items.byId(o.item).name} × ${o.qty}</span>
+            <span class="plan-st st-waiting">期限 ${o.duration}s</span></div>
+          <div style="font-size:11px;margin:2px 0">奖励：<b style="color:var(--accent2)">${rewardTxt(o.reward)}</b></div>
+          <div class="action-row" style="margin-top:3px">
+            <button data-contract-accept="${b.stationId}:${i}">接单</button>
+          </div>
+        </div>`;
+      });
+      h += `<div class="action-row" style="margin-top:4px">
+        <button data-contract-refresh="${b.stationId}">🔄 刷新邀约</button></div>`;
+    }
+    h += `</div>`;
+    return h;
+  }
+
+  /** 右侧「合同」页：全部进行中合同 + 最近成交 */
+  function renderContract() {
+    const game = FG.game, cm = game.contracts;
+    let h = `<div class="panel-sec"><h4>进行中的供货合同（${cm.active.length}）</h4>`;
+    if (!cm.active.length) {
+      h += `<div style="color:var(--text-dim);font-size:11px;line-height:1.7">
+        研究「供货合同」科技后建造<b>交付站</b>（轨道旁），在交付站面板承接合同，
+        再用列车把工厂产品分批运抵交付站。<br>
+        锁付货物与生产、施工统一争料却独立记账，完成后发放科研物资。</div>`;
+    }
+    for (const c of cm.active) {
+      const st = game.railway.stationById(c.stationId);
+      const p = Math.min(1, c.delivered / c.qty);
+      const remain = cm.remainSec(c);
+      const late = remain <= 30;
+      h += `<div class="bp-plan">
+        <div class="bp-head"><span title="${c.id}">${st ? '📍 ' + st.stationName : '⚠ 站点已拆除'} · ${FG.Items.byId(c.item).name}×${c.qty}</span>
+          <span class="plan-st ${late ? 'st-blocked' : 'st-active'}">${FG.Utils.fmtTime(remain)}</span></div>
+        <div class="progress-bar"><div class="fill" style="width:${(p * 100).toFixed(1)}%;background:${late ? '#e05c5c' : '#37c9b0'}"></div></div>
+        <div style="font-size:11px;color:var(--text-dim)">已锁付 ${c.delivered}/${c.qty} · 奖励 ${rewardTxt(c.reward)}</div>
+        <div class="action-row" style="margin-top:4px">
+          ${st ? `<button data-contract-select="${c.stationId}">定位交付站</button>` : ''}
+          <button data-contract-cancel="${c.id}" class="danger">取消</button>
+        </div>
+      </div>`;
+    }
+    h += `</div>`;
+
+    h += `<div class="panel-sec"><h4>最近成交（${cm.history.length}）</h4>`;
+    if (!cm.history.length) h += `<div style="color:var(--text-dim);font-size:11px">尚无完成的合同</div>`;
+    for (const r of cm.history.slice(0, 10)) {
+      h += `<div class="slot-row"><span class="sl-name">✅ ${FG.Items.byId(r.item).name}×${r.qty}</span>
+        <span style="color:var(--accent2);font-size:11px">${rewardTxt(r.reward)}</span></div>`;
+    }
+    h += `</div>`;
+    bodyEl().innerHTML = h;
+
+    for (const el of bodyEl().querySelectorAll('[data-contract-accept]')) {
+      el.onclick = () => {
+        const [sid, idx] = el.dataset.contractAccept.split(':');
+        const st = game.railway.stationById(sid);
+        if (st) cm.acceptOffer(st, parseInt(idx, 10));
+      };
+    }
+    for (const el of bodyEl().querySelectorAll('[data-contract-refresh]')) {
+      el.onclick = () => { const st = game.railway.stationById(el.dataset.contractRefresh); if (st) cm.refreshOffers(st); };
+    }
+    for (const el of bodyEl().querySelectorAll('[data-contract-cancel]')) {
+      el.onclick = () => cm.cancel(el.dataset.contractCancel);
+    }
+    for (const el of bodyEl().querySelectorAll('[data-contract-select]')) {
+      el.onclick = () => {
+        const st = game.railway.stationById(el.dataset.contractSelect);
+        if (st) { game.selectBuilding(st); activeTab = 'info'; render(); }
+      };
+    }
   }
 
   // ================= 列车 =================
@@ -823,6 +936,24 @@ FG.Panels = (() => {
     else if (tr.stopIdx === j) tr.stopIdx = i;
   }
 
+  /** 交付站面板内的接单/刷新/取消按钮（信息页与合同页共用） */
+  function bindContractActions() {
+    const game = FG.game, cm = game.contracts;
+    for (const el of document.querySelectorAll('[data-contract-accept]')) {
+      el.onclick = () => {
+        const [sid, idx] = el.dataset.contractAccept.split(':');
+        const st = game.railway.stationById(sid);
+        if (st) cm.acceptOffer(st, parseInt(idx, 10));
+      };
+    }
+    for (const el of document.querySelectorAll('[data-contract-refresh]')) {
+      el.onclick = () => { const st = game.railway.stationById(el.dataset.contractRefresh); if (st) cm.refreshOffers(st); };
+    }
+    for (const el of document.querySelectorAll('[data-contract-cancel]')) {
+      el.onclick = () => cm.cancel(el.dataset.contractCancel);
+    }
+  }
+
   function bindActions() {
     const game = FG.game;
     // 火车站改名
@@ -846,6 +977,7 @@ FG.Panels = (() => {
     // 列车计划编辑
     const sel = game.selection;
     if (sel && sel.isTrain) bindTrainActions(sel);
+    bindContractActions();
 
     const btn = document.getElementById('btn-demolish');
     if (btn) btn.onclick = () => {

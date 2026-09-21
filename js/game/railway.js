@@ -486,7 +486,7 @@ FG.Train = class Train {
       const budget = Math.min(FG.Config.TRAIN_TRANSFER, this.work.rem);
       let moved = 0;
       if (stop.action === 'unload') {
-        moved = this.unloadToStation(station, stop.item, budget);
+        moved = this.unloadToStation(ry, station, stop.item, budget);
       } else {
         moved = this.loadFromStation(station, stop.item, budget);
       }
@@ -517,7 +517,7 @@ FG.Train = class Train {
   }
 
   /** 列车 → 站货位，返回实际卸下件数（站满则卸不动） */
-  unloadToStation(station, item, n) {
+  unloadToStation(ry, station, item, n) {
     let moved = 0;
     for (const s of this.cargo) {
       if (moved >= n) break;
@@ -539,7 +539,12 @@ FG.Train = class Train {
           slot.type = s.type; slot.count = q; put += q;
         }
       }
-      if (put > 0) { s.count -= put; moved += put; }
+      if (put > 0) {
+        s.count -= put; moved += put;
+        // 交付站供货合同：刚卸入站货位的合同货物即时锁付（移出物流、独立记账）。
+        // 同一 tick 内完成，施工/调度的盘点发生在铁路 tick 之前，锁付货物不进任何预算池。
+        if (station.def.delivery && ry.game.contracts) ry.game.contracts.onTrainUnloaded(station, s.type);
+      }
       if (put < want) break; // 站库满，本 tick 无能为力（等机械臂/带拉走）
     }
     this.cargo = this.cargo.filter(s => s.count > 0);

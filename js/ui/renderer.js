@@ -197,8 +197,8 @@ FG.Renderer = (() => {
   function drawRailTile(b, px, py, t) {
     const inWorld = !!(game && game.map && game.state === 'playing'
       && game.map.inBounds(b.x, b.y) && game.map.buildingAt(b.x, b.y) === b);
-    // 底座（车站用站台色）
-    ctx.fillStyle = b.def.railStation ? '#3a3430' : '#232730';
+    // 底座（车站用站台色；交付站用青绿色站台）
+    ctx.fillStyle = b.def.delivery ? '#24383a' : b.def.railStation ? '#3a3430' : '#232730';
     ctx.fillRect(px + 1, py + 1, t - 2, t - 2);
 
     const links = [];
@@ -243,29 +243,49 @@ FG.Renderer = (() => {
     }
 
     if (b.def.railStation) {
-      // 站台边 + 站名
-      ctx.strokeStyle = '#e8b33d';
+      // 站台边 + 站名（交付站用青色虚线，普通站用金色）
+      ctx.strokeStyle = b.def.delivery ? '#37c9b0' : '#e8b33d';
       ctx.lineWidth = 1.4;
       ctx.setLineDash([4, 3]);
       ctx.strokeRect(px + 2.5, py + 2.5, t - 5, t - 5);
       ctx.setLineDash([]);
-      ctx.fillStyle = '#e8b33d';
+      ctx.fillStyle = b.def.delivery ? '#7fe8d8' : '#e8b33d';
       ctx.font = 'bold 8px Consolas';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('站', px + t / 2, py + t / 2);
+      ctx.fillText(b.def.delivery ? '交' : '站', px + t / 2, py + t / 2);
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       if (inWorld) {
         ctx.fillStyle = 'rgba(0,0,0,0.45)';
         ctx.fillRect(px + 2, py + 2, 26, 8);
-        ctx.fillStyle = '#ffd97a';
+        ctx.fillStyle = b.def.delivery ? '#9ff5e8' : '#ffd97a';
         ctx.font = '7px Consolas';
         ctx.textAlign = 'left'; ctx.textBaseline = 'top';
         ctx.fillText((b.stationName || b.stationId || '站').slice(0, 5), px + 3, py + 2.5);
         ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       }
-      // 货位预览（与箱子一致）
-      const items = (b.chest || []).filter(s => s.count > 0);
-      if (items.length && inWorld) drawItem(ctx, items[0].type, px + t - 7, py + t - 7, 7, 1);
+      // 货位预览（与箱子一致）；交付站有进行中合同时改为显示锁付货物
+      let prevItem = null, prevCount = 0;
+      if (b.def.delivery && game.contracts) {
+        const c = game.contracts.contractAt(b);
+        if (c) { prevItem = c.item; prevCount = c.delivered; }
+      }
+      if (!prevItem) {
+        const items = (b.chest || []).filter(s => s.count > 0);
+        if (items.length) { prevItem = items[0].type; prevCount = items[0].count; }
+      }
+      if (prevItem && inWorld) drawItem(ctx, prevItem, px + t - 7, py + t - 7, 7, 1);
+      // 进行中合同：站顶画交付进度条（逾期临近变红）
+      if (inWorld && game.contracts) {
+        const c = game.contracts.contractAt(b);
+        if (c) {
+          const p = Math.max(0, Math.min(1, c.delivered / c.qty));
+          const remain = game.contracts.remainSec(c);
+          ctx.fillStyle = 'rgba(0,0,0,0.55)';
+          ctx.fillRect(px + 3, py + t - 6, t - 6, 3.4);
+          ctx.fillStyle = remain <= 30 ? '#e05c5c' : '#37c9b0';
+          ctx.fillRect(px + 3, py + t - 6, (t - 6) * p, 3.4);
+        }
+      }
     }
   }
 

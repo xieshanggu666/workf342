@@ -279,9 +279,17 @@
       }
       if (b.def.railStation) {
         const held = game.railway.occupiedBy(b.x, b.y);
-        html += `<div class="tt-row">站号 <b>${b.stationId}</b>${held ? ` · <b style="color:#58c26f">${held} 停靠中</b>` : ''}</div>`;
+        const tag = b.def.delivery ? '交付站' : '站号';
+        html += `<div class="tt-row">${tag} <b>${b.stationId}</b>${held ? ` · <b style="color:#58c26f">${held} 停靠中</b>` : ''}</div>`;
         const cargo = b.chest.reduce((n, s) => n + s.count, 0);
         html += `<div class="tt-row">货位 <b>${cargo}/${FG.Config.STATION_SLOTS * FG.Config.STATION_SLOT_CAP}</b></div>`;
+        if (b.def.delivery && game.contracts) {
+          const c = game.contracts.contractAt(b);
+          if (c) {
+            html += `<div class="tt-row">合同 <b>${FG.Items.byId(c.item).name} ${c.delivered}/${c.qty}</b>
+              · 剩 <b>${FG.Utils.fmtTime(game.contracts.remainSec(c))}</b></div>`;
+          }
+        }
       }
       if (b.def.railDepot) {
         const near = FG.Utils.dirs.map(v => {

@@ -5,7 +5,7 @@
 window.FG = window.FG || {};
 
 FG.Config = {
-  VERSION: '1.8.0',
+  VERSION: '1.9.0',
 
   // 仿真节拍：每秒 20 tick
   TPS: 20,
@@ -40,6 +40,14 @@ FG.Config = {
   TRAIN_DWELL_MAX: 300,      // 最长停站 tick 数（15 秒，防堵站：到时强制离站）
   STATION_SLOTS: 4,          // 火车站货位格数（与箱子一致）
   STATION_SLOT_CAP: 1000,    // 火车站单货位容量
+
+  // 供货合同
+  CONTRACT_OFFERS: 3,             // 每个交付站可刷出的合同邀约数
+  CONTRACT_REFRESH_TICKS: 20 * 60,// 邀约列表刷新间隔（60 仿真秒）
+  CONTRACT_MIN_DEADLINE: 120,     // 合同最短期限（仿真秒）
+  CONTRACT_MAX_DEADLINE: 420,     // 合同最长期限（仿真秒）
+  CONTRACT_MIN_QTY: 20,           // 合同需求量下限
+  CONTRACT_MAX_QTY: 120,          // 合同需求量上限
 
 
   // 蓝图施工

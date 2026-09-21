@@ -41,6 +41,12 @@ FG.Research = (() => {
       cost: { science1: 20, science2: 30 }, prereq: ['logistics2'],
       unlocksB: ['rail', 'station', 'trainDepot'], unlocksR: [],
     },
+    supplyContract: {
+      id: 'supplyContract', name: '供货合同', col: 5, row: 3,
+      desc: '建造交付站承接对外供货合同：用列车分批把工厂产品运抵交付站，逾期或取消释放预留，合同完成发放科研物资。',
+      cost: { science1: 30, science2: 50 }, prereq: ['railTransport'],
+      unlocksB: ['deliveryStation'], unlocksR: [],
+    },
     advancedElectronics: {
       id: 'advancedElectronics', name: '高级电子学', col: 2, row: 1,
       desc: '解锁高级电路板、二级组装机与太阳能板。',

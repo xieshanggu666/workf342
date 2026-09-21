@@ -139,6 +139,12 @@ FG.Buildings = (() => {
       cost: { ironPlate: 8, gear: 4, ironBeam: 2 },   // 蓝图施工建材
       unlockedBy: 'railTransport', railDepot: true,
     },
+    deliveryStation: {
+      id: 'deliveryStation', name: '交付站', cat: 'logistics',
+      desc: '建在轨道旁（至少一侧接轨）：承接对外供货合同。列车卸入的合同货物被锁付并独立记账（生产/施工不可动用），分批交齐后发放科研物资；逾期或取消合同时释放全部锁付货物。',
+      cost: { ironPlate: 10, gear: 6, circuit: 4 },   // 蓝图施工建材
+      unlockedBy: 'supplyContract', storage: true, railStation: true, delivery: true,
+    },
   };
 
   const byId = (id) => DEFS[id];

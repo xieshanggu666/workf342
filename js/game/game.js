@@ -9,6 +9,7 @@ FG.Game = class Game {
     this.stats = new FG.Stats();
     this.research = new FG.ResearchMgr(this);
     this.railway = new FG.Railway(this);   // 铁路货运：轨网/列车/调度状态
+    this.contracts = new FG.Contracts(this); // 供货合同：接单/锁付/逾期/奖励
     this.speed = 1;
     this.paused = false;
     this.tickCount = 0;
@@ -55,6 +56,7 @@ FG.Game = class Game {
     this.stats = new FG.Stats();
     this.research = new FG.ResearchMgr(this);
     this.railway = new FG.Railway(this);
+    this.contracts = new FG.Contracts(this);
     this.tickCount = 0;
     this.playTime = 0;
     this.simAcc = 0;
@@ -134,6 +136,7 @@ FG.Game = class Game {
       construction: this.construction.serialize(),   // 施工计划（进度随存档恢复）
       blueprint: this.blueprint,                     // 蓝图剪贴板
       railway: this.railway.serialize(),             // 列车/运输计划/调度状态（含在途货物）
+      contracts: this.contracts.serialize(),         // 供货合同（锁付台账/邀约/期限/奖励）
       meta: { playTime: this.playTime, name: this.saveInfo.name, startDate: this.saveInfo.startDate },
     };
   }
@@ -212,6 +215,8 @@ FG.Game = class Game {
     this.blueprint = data.blueprint || null;
     // 铁路：列车在途货物与调度状态随档恢复（占用表由列车位置重建）
     this.railway.deserialize(data.railway || null);
+    // 供货合同：锁付台账/邀约/期限随档恢复（锁付货物不进站货位，无物理库存需重建）
+    this.contracts.deserialize(data.contracts || null);
     // 读回的一键流水线蓝图恢复来源标记（bpMode 不持久化，需重新进入放置预览）
     this.pipelineId = (this.blueprint && this.blueprint.fromPreset) || null;
     this.logMsg('存档已载入', 'info');
@@ -269,7 +274,8 @@ FG.Game = class Game {
   tickOnce() {
     this.sim.tick();
     this.construction.tick();   // 施工计划：备料 → 落成
-    this.railway.tick();        // 铁路：区间占用 → 行驶 → 停站装卸
+    this.railway.tick();        // 铁路：区间占用 → 行驶 → 停站装卸（卸货锁付合同货物）
+    this.contracts.tick();      // 供货合同：逾期检查（锁付货物在卸货事件中即时结算）
     this.tickCount++;
   }
 
@@ -400,6 +406,8 @@ FG.Game = class Game {
         return false;
       }
     }
+    // 交付站拆除：终止其供货合同，锁付货物落到该格地面堆（与下方拆除物料一并保留）
+    if (this.contracts && b.def && b.def.delivery) this.contracts.onStationRemoved(b);
     // 物料保留：传送带上的在途物品、手中物品、槽位与箱子物料全部落到该格地面堆
     // 拆建即释放预留：落地前剥离在途预留标签，物料恢复为自由货物可被任何产线取用
     if (b.items) for (const it of b.items) this.map.pileAdd(b.x, b.y, it.type, 1);
