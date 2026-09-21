@@ -58,7 +58,7 @@ FG.Railway = class Railway {
         this.nodes.add(FG.Utils.key(b.x, b.y));
         if (b.def.railStation) {
           if (!b.stationId) b.stationId = 'S' + (this.stationSeq++);
-          if (!b.stationName) b.stationName = '站点 ' + b.stationId.slice(1);
+          if (!b.stationName) b.stationName = (b.def.contractDock ? '交付站 ' : '站点 ') + b.stationId.slice(1);
           this.stationMap.set(b.stationId, b);
         }
       }

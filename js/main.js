@@ -283,6 +283,18 @@
         const cargo = b.chest.reduce((n, s) => n + s.count, 0);
         html += `<div class="tt-row">货位 <b>${cargo}/${FG.Config.STATION_SLOTS * FG.Config.STATION_SLOT_CAP}</b></div>`;
       }
+      if (b.def.contractDock) {
+        const list = game.contracts.contractAtDock(b.stationId);
+        if (list.length) {
+          for (const c of list) {
+            html += `<div class="tt-row">📦 ${FG.Items.byId(c.item).name} 合同 <b>${c.delivered}/${c.qty}</b>`
+              + (c.reserve ? `（本批 ${c.reserve}/${c.batch}）` : '')
+              + ` · 剩 <b>${FG.Utils.fmtTime(game.contracts.remainSec(c))}</b></div>`;
+          }
+        } else {
+          html += `<div class="tt-row">交付站：暂无绑定合同（「合同」页接单）</div>`;
+        }
+      }
       if (b.def.railDepot) {
         const near = FG.Utils.dirs.map(v => {
           const nb = m.buildingAt(b.x + v.x, b.y + v.y);

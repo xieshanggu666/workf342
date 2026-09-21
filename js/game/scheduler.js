@@ -187,7 +187,11 @@ FG.Scheduler = class Scheduler {
       if (b.def.beltTier !== undefined) {
         for (const it of b.items) if (!it.tag) add(it.type, 1);
       } else if (b.def.storage) {
-        for (const s of b.chest) if (s.count > 0) add(s.type, s.count);
+        // 交付站货位归供货合同独立记账：已与生产/施工在共同料源处争过料，
+        // 运抵交付站后不再作为按需物流的自由料源（避免被别的产线抢走）。
+        if (!b.def.contractDock) {
+          for (const s of b.chest) if (s.count > 0) add(s.type, s.count);
+        }
       } else if (b.slots) {
         // 与 pickSource 一致：产物槽可取；输入槽仅取与当前配方无关的残留料
         const outs = b.slots.outputs;

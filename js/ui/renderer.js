@@ -243,24 +243,25 @@ FG.Renderer = (() => {
     }
 
     if (b.def.railStation) {
-      // 站台边 + 站名
-      ctx.strokeStyle = '#e8b33d';
+      const isDock = !!b.def.contractDock;
+      // 站台边 + 站名（交付站用绿色虚线区别于普通火车站的金色）
+      ctx.strokeStyle = isDock ? '#58c26f' : '#e8b33d';
       ctx.lineWidth = 1.4;
       ctx.setLineDash([4, 3]);
       ctx.strokeRect(px + 2.5, py + 2.5, t - 5, t - 5);
       ctx.setLineDash([]);
-      ctx.fillStyle = '#e8b33d';
+      ctx.fillStyle = isDock ? '#8fd9a3' : '#e8b33d';
       ctx.font = 'bold 8px Consolas';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('站', px + t / 2, py + t / 2);
+      ctx.fillText(isDock ? '交' : '站', px + t / 2, py + t / 2);
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       if (inWorld) {
         ctx.fillStyle = 'rgba(0,0,0,0.45)';
         ctx.fillRect(px + 2, py + 2, 26, 8);
-        ctx.fillStyle = '#ffd97a';
+        ctx.fillStyle = isDock ? '#b6f0c4' : '#ffd97a';
         ctx.font = '7px Consolas';
         ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-        ctx.fillText((b.stationName || b.stationId || '站').slice(0, 5), px + 3, py + 2.5);
+        ctx.fillText((b.stationName || b.stationId || (isDock ? '交付站' : '站')).slice(0, 5), px + 3, py + 2.5);
         ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       }
       // 货位预览（与箱子一致）

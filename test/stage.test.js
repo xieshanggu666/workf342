@@ -22,8 +22,9 @@ const files = [
   'js/core/config.js', 'js/core/utils.js',
   'js/data/items.js', 'js/data/recipes.js', 'js/data/buildings.js',
   'js/data/research.js', 'js/data/maps.js',
+  'js/data/contracts.js',
   'js/game/map.js', 'js/game/scheduler.js', 'js/game/railway.js', 'js/game/sim.js', 'js/game/researchmgr.js',
-  'js/game/stats.js', 'js/game/save.js', 'js/game/blueprint.js', 'js/game/game.js',
+  'js/game/stats.js', 'js/game/save.js', 'js/game/blueprint.js', 'js/game/contractmgr.js', 'js/game/game.js',
 ];
 for (const f of files) {
   vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f });
@@ -598,7 +599,7 @@ console.log('\n[16] 分项产量随存档往返；新档真实达标的已开放
   ok(byItemBefore >= 2, '建筑按产物分项计数 craftedByItem.ironPlate=' + byItemBefore);
 
   const data = JSON.parse(JSON.stringify(game.serialize()));
-  ok(data.v === '1.8.0', '存档版本 1.8.0');
+  ok(data.v === FG.Config.VERSION, '存档版本 ' + FG.Config.VERSION);
   const sbFur = data.buildings.find(b => b.x === 30 && b.y === 34);
   ok(sbFur.craftedByItem && sbFur.craftedByItem.ironPlate === byItemBefore,
     '分项产量随存档保存');

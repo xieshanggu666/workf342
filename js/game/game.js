@@ -9,6 +9,7 @@ FG.Game = class Game {
     this.stats = new FG.Stats();
     this.research = new FG.ResearchMgr(this);
     this.railway = new FG.Railway(this);   // 铁路货运：轨网/列车/调度状态
+    this.contracts = new FG.ContractMgr(this); // 供货合同：看板/接单/分批交付/记账
     this.speed = 1;
     this.paused = false;
     this.tickCount = 0;
@@ -55,6 +56,7 @@ FG.Game = class Game {
     this.stats = new FG.Stats();
     this.research = new FG.ResearchMgr(this);
     this.railway = new FG.Railway(this);
+    this.contracts = new FG.ContractMgr(this);
     this.tickCount = 0;
     this.playTime = 0;
     this.simAcc = 0;
@@ -134,6 +136,7 @@ FG.Game = class Game {
       construction: this.construction.serialize(),   // 施工计划（进度随存档恢复）
       blueprint: this.blueprint,                     // 蓝图剪贴板
       railway: this.railway.serialize(),             // 列车/运输计划/调度状态（含在途货物）
+      contracts: this.contracts.serialize(),         // 供货合同（报价/独立账本/期限/已发奖标记）
       meta: { playTime: this.playTime, name: this.saveInfo.name, startDate: this.saveInfo.startDate },
     };
   }
@@ -212,6 +215,8 @@ FG.Game = class Game {
     this.blueprint = data.blueprint || null;
     // 铁路：列车在途货物与调度状态随档恢复（占用表由列车位置重建）
     this.railway.deserialize(data.railway || null);
+    // 供货合同：看板报价、进行中合同（含 delivered/reserve/期限/已发奖标记）随档恢复
+    this.contracts.deserialize(data.contracts || null);
     // 读回的一键流水线蓝图恢复来源标记（bpMode 不持久化，需重新进入放置预览）
     this.pipelineId = (this.blueprint && this.blueprint.fromPreset) || null;
     this.logMsg('存档已载入', 'info');
@@ -270,6 +275,7 @@ FG.Game = class Game {
     this.sim.tick();
     this.construction.tick();   // 施工计划：备料 → 落成
     this.railway.tick();        // 铁路：区间占用 → 行驶 → 停站装卸
+    this.contracts.tick();      // 供货合同：从交付站划扣到货物 → 凑批记账 → 完成发奖 / 逾期
     this.tickCount++;
   }
 
@@ -331,7 +337,7 @@ FG.Game = class Game {
     if (b.type === 'miner') b.oreType = this.map.oreAt(x, y);
     if (b.def.railStation) {
       b.stationId = 'S' + (this.railway.stationSeq++);
-      b.stationName = '站点 ' + b.stationId.slice(1);
+      b.stationName = (b.def.contractDock ? '交付站 ' : '站点 ') + b.stationId.slice(1);
     }
     this.map.register(b);
     this.sim.register(b);
@@ -409,6 +415,8 @@ FG.Game = class Game {
       for (const k of Object.keys(b.slots.inputs)) if (b.slots.inputs[k].count > 0) this.map.pileAdd(b.x, b.y, k, b.slots.inputs[k].count);
       for (const k of Object.keys(b.slots.outputs)) if (b.slots.outputs[k].count > 0) this.map.pileAdd(b.x, b.y, k, b.slots.outputs[k].count);
     }
+    // 拆除交付站：绑定的进行中合同无法再交付 —— 取消并释放未满批预留（货位物料已在上方落地）
+    if (b.def && b.def.contractDock) this.contracts.handleDockRemoved(b.stationId);
     this.sim.unregister(b);
     this.map.unregister(b);
     if (b.type === 'rail' || b.def.railStation) this.railway.markDirty();

@@ -19,8 +19,9 @@ const files = [
   'js/core/config.js', 'js/core/utils.js',
   'js/data/items.js', 'js/data/recipes.js', 'js/data/buildings.js',
   'js/data/research.js', 'js/data/maps.js',
+  'js/data/contracts.js',
   'js/game/map.js', 'js/game/scheduler.js', 'js/game/railway.js', 'js/game/sim.js', 'js/game/researchmgr.js',
-  'js/game/stats.js', 'js/game/save.js', 'js/game/blueprint.js', 'js/game/game.js',
+  'js/game/stats.js', 'js/game/save.js', 'js/game/blueprint.js', 'js/game/contractmgr.js', 'js/game/game.js',
 ];
 for (const f of files) {
   vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f });

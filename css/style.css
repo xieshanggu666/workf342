@@ -528,3 +528,13 @@ button.danger:hover { background: #4d2c2c; }
 }
 .stop-cfg button { font-size: 11px; padding: 3px 8px; }
 .v.status-blocked { color: var(--orange); font-weight: 600; }
+
+/* ============ 供货合同 ============ */
+.ct-active { border-left: 3px solid var(--green); }
+.ct-offer { border-left: 3px solid var(--accent2); }
+.ct-offer:hover { border-color: var(--border-light); }
+.ct-offer .stop-cfg select { max-width: 150px; flex: 1; }
+.ct-offer .stop-cfg button { flex: 0 0 auto; background: #26331f; border-color: #4c6b3d; color: #b6f0c4; }
+.ct-offer .stop-cfg button:hover { background: #32452a; }
+.ct-offer .stop-cfg button:disabled { background: var(--bg3); border-color: var(--border); color: var(--text-dim); }
+#ct-refresh:hover { text-decoration: underline; }

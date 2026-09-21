@@ -6,8 +6,8 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 global.window = global;
 global.localStorage = { _d:{}, getItem(k){return this._d[k]||null;}, setItem(k,v){this._d[k]=String(v);}, removeItem(k){delete this._d[k];} };
 for (const f of ['js/core/config.js','js/core/utils.js','js/data/items.js','js/data/recipes.js','js/data/buildings.js',
-'js/data/research.js','js/data/maps.js','js/game/map.js','js/game/scheduler.js', 'js/game/railway.js','js/game/sim.js','js/game/researchmgr.js','js/game/stats.js',
-'js/game/save.js','js/game/blueprint.js','js/game/game.js'])
+'js/data/research.js','js/data/maps.js','js/data/contracts.js','js/game/map.js','js/game/scheduler.js', 'js/game/railway.js','js/game/sim.js','js/game/researchmgr.js','js/game/stats.js',
+'js/game/save.js','js/game/blueprint.js','js/game/contractmgr.js','js/game/game.js'])
   vm.runInThisContext(fs.readFileSync(path.join('/workspace', f), 'utf8'), { filename: f });
 
 let pass=0, fail=0;

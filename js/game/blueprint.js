@@ -800,7 +800,7 @@ FG.Construction = class Construction {
     if (b.type === 'miner') b.oreType = g.map.oreAt(e.x, e.y);
     if (b.def.railStation) {
       b.stationId = 'S' + (g.railway.stationSeq++);
-      b.stationName = e.stationName || ('站点 ' + b.stationId.slice(1));
+      b.stationName = e.stationName || ((b.def.contractDock ? '交付站 ' : '站点 ') + b.stationId.slice(1));
     }
     g.map.register(b);
     g.sim.register(b);   // 接入生产调度：纳入每 tick 调度/传送带/机械臂/生产更新
@@ -1124,6 +1124,9 @@ class MaterialPool {
     this.chests = [];
     for (const b of game.map.buildings.values()) {
       if (!b.def.storage) continue;
+      // 交付站货位是合同在途/待交付货物：已与生产、施工在共同料源处争过料，
+      // 运抵交付站后归合同独立记账，施工备料不得再从这里抢料。
+      if (b.def.contractDock) continue;
       this.chests.push(b);
       for (const s of b.chest) {
         if (s.type && s.count > 0) this.free.set(s.type, (this.free.get(s.type) || 0) + s.count);

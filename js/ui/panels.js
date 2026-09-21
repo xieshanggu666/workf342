@@ -27,6 +27,8 @@ FG.Panels = (() => {
     FG.Events.on('recipe:change', () => { render(); });
     FG.Events.on('construction:change', () => { if (activeTab === 'build') render(); });
     FG.Events.on('blueprint:change', () => { if (activeTab === 'build') render(); });
+    FG.Events.on('contract:change', () => { if (activeTab === 'contract') render(); });
+    FG.Events.on('contract:complete', () => { if (activeTab === 'contract') render(); });
     FG.Events.on('message', () => { if (activeTab === 'log') render(); });
   }
 
@@ -35,6 +37,7 @@ FG.Panels = (() => {
     if (activeTab === 'info') renderInfo();
     else if (activeTab === 'stats') renderStats();
     else if (activeTab === 'build') renderBuild();
+    else if (activeTab === 'contract') renderContract();
     else if (activeTab === 'log') renderLog();
     bindActions();
   }
@@ -204,6 +207,22 @@ FG.Panels = (() => {
             <span style="color:var(--text)">第 ${u.i + 1} 站 · ${u.tr.stops[u.i].action === 'load' ? '装' : '卸'}
             ${u.tr.stops[u.i].item ? FG.Items.byId(u.tr.stops[u.i].item).name : '任意'}×${u.tr.stops[u.i].count}</span></div>`;
         }
+      }
+      h += `</div>`;
+    }
+
+    // 交付站：列出绑定到此站的进行中合同
+    if (b.def.contractDock) {
+      const list = game.contracts.contractAtDock(b.stationId);
+      h += `<div class="panel-sec"><h4>📦 交付站 · 供货合同</h4>
+        <div style="font-size:11px;color:var(--text-dim);line-height:1.5;margin-bottom:4px">
+          列车把合同货物卸入本站货位后自动划扣记账；本站货位不参与施工备料，合同在途货物不会被抢。</div>`;
+      if (!list.length) {
+        h += `<div style="color:var(--text-dim);font-size:11px">本站暂无绑定合同，在右侧「合同」页接单时选择本站。</div>`;
+      }
+      for (const c of list) {
+        h += `<div class="slot-row"><span class="sl-name">${FG.Items.byId(c.item).name} ${c.delivered}/${c.qty}</span>
+          <span style="color:var(--accent2);font-size:11px">${c.reserve ? '本批到货 ' + c.reserve + '/' + c.batch + ' · ' : ''}剩 ${FG.Utils.fmtTime(game.contracts.remainSec(c))}</span></div>`;
       }
       h += `</div>`;
     }
@@ -751,6 +770,114 @@ FG.Panels = (() => {
       if (d) stack.push(...d.deps);
     }
     return false;
+  }
+
+  // ================= 供货合同 =================
+  function renderContract() {
+    const game = FG.game, mgr = game.contracts;
+    mgr.ensureBoard(game.playTime, false);
+    const unlocked = game.research.isDone('railTransport');
+    let h = '';
+
+    h += `<div class="panel-sec"><h4>📦 供货合同</h4>`;
+    if (!unlocked) {
+      h += `<div style="color:var(--text-dim);font-size:11px;line-height:1.7">
+        研究科技树中的「<b>铁路货运</b>」后解锁供货合同。<br><br>
+        接单后用列车把合同货物运到一座<b>交付站</b>，系统分批划扣、独立记账；
+        合同货物在共同料源处与生产、施工统一争料，完成后发放<b>科研物资</b>。逾期未交或取消会释放未满批预留。</div>`;
+      bodyEl().innerHTML = h;
+      return;
+    }
+    const docks = mgr.docks();
+    h += `<div style="font-size:11px;color:var(--text-dim);line-height:1.6;margin-bottom:6px">
+      列车把货物卸入<b>交付站</b>货位即自动划扣：每凑满一批记一笔交付，全部交完发放科研物资到该站货位。<br>
+      进行中 ${mgr.active.length}/${FG.Config.CONTRACT_MAX_ACTIVE} · 交付站 ${docks.length} 座
+      <span style="float:right"><a id="ct-refresh" style="color:var(--accent2);cursor:pointer">换一批 ↻</a></span></div>`;
+    h += `</div>`;
+
+    // —— 进行中合同 ——
+    h += `<div class="panel-sec"><h4>进行中（${mgr.active.length}）</h4>`;
+    if (!mgr.active.length) h += `<div style="color:var(--text-dim);font-size:11px">暂无进行中的合同，去看板接单。</div>`;
+    for (const c of mgr.active) {
+      const remain = mgr.remainSec(c);
+      const overdueSoon = remain <= 60;
+      const totalDone = c.delivered + Math.floor(c.reserve / c.batch) * c.batch;
+      const pct = Math.min(100, c.delivered / c.qty * 100);
+      const batches = c.qty / c.batch;
+      const doneBatches = c.delivered / c.batch;
+      const dock = mgr.dockById(c.dockStationId);
+      h += `<div class="bp-plan ct-active">
+        <div class="bp-head">
+          <span title="${c.id}">📦 ${FG.Items.byId(c.item).name} ×${c.qty}</span>
+          <span class="plan-st ${overdueSoon ? 'st-blocked' : 'st-active'}">⏳ ${FG.Utils.fmtTime(remain)}</span>
+        </div>
+        <div class="progress-bar"><div class="fill" style="width:${pct.toFixed(1)}%;background:linear-gradient(90deg,#58c26f,#8fd9a3)"></div></div>
+        <div style="font-size:11px;color:var(--text-dim)">
+          已交付 <b style="color:var(--green)">${c.delivered}/${c.qty}</b>（${doneBatches}/${batches} 批）
+          ${c.reserve ? `· 本批已到 <b style="color:var(--accent2)">${c.reserve}</b>/${c.batch}` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">
+          交付站：${dock ? dock.stationName : '<span style="color:var(--red)">⚠ ' + (c.dockName || c.dockStationId) + ' 已拆除</span>'}
+          · 奖励 <b style="color:var(--yellow)">${FG.Items.byId(c.reward.item).name}×${c.reward.count}</b>
+        </div>
+        <div class="action-row" style="margin-top:5px">
+          <button data-ct-cancel="${c.id}" class="danger">取消（释放未满批预留）</button>
+        </div>
+      </div>`;
+    }
+    h += `</div>`;
+
+    // —— 看板报价 ——
+    h += `<div class="panel-sec"><h4>合同看板（${mgr.offers.length}）</h4>`;
+    if (!docks.length) {
+      h += `<div style="color:var(--orange);font-size:11px;margin-bottom:6px">图上还没有「交付站」：先在轨道旁建一座交付站才能接单（列车停靠卸货）。</div>`;
+    }
+    for (const o of mgr.offers) {
+      const batches = o.qty / o.batch;
+      h += `<div class="bp-plan ct-offer">
+        <div class="bp-head"><span>${FG.Items.byId(o.item).name} ×${o.qty}</span>
+          <span class="plan-st st-waiting">${batches} 批 · 每批 ${o.batch}</span></div>
+        <div style="font-size:11px;color:var(--text-dim);margin:2px 0">
+          期限 ${FG.Utils.fmtTime(o.durationSec)} · 奖励 <b style="color:var(--yellow)">${FG.Items.byId(o.reward.item).name}×${o.reward.count}</b>
+        </div>
+        <div class="stop-cfg" style="margin-top:3px">
+          <select data-ct-dock="${o.oid}">
+            ${docks.length ? docks.map(d => `<option value="${d.stationId}">${d.stationName} (${d.x},${d.y})</option>`).join('') : '<option value">无交付站</option>'}
+          </select>
+          <button data-ct-accept="${o.oid}" ${docks.length ? '' : 'disabled'}>接单</button>
+        </div>
+      </div>`;
+    }
+    h += `</div>`;
+
+    // —— 最近结算 ——
+    if (mgr.history.length) {
+      h += `<div class="panel-sec"><h4>最近结算</h4>`;
+      const STNAME = { done: ['✅ 完成', 'var(--green)'], overdue: ['⏰ 逾期', 'var(--red)'], canceled: ['取消', 'var(--text-dim)'] };
+      for (const c of mgr.history.slice(0, 8)) {
+        const [nm, col] = STNAME[c.status] || [c.status, 'var(--text-dim)'];
+        const rw = c.reward ? FG.Items.byId(c.reward.item).name + '×' + c.reward.count : '—';
+        h += `<div class="slot-row"><span class="sl-name" style="color:${col}">${nm}</span>
+          <span style="color:var(--text-dim);font-size:11px">${FG.Items.byId(c.item).name} ${c.delivered}/${c.qty} · ${rw}</span></div>`;
+      }
+      h += `</div>`;
+    }
+
+    bodyEl().innerHTML = h;
+
+    const refr = document.getElementById('ct-refresh');
+    if (refr) refr.onclick = () => mgr.refreshBoard();
+    for (const btn of bodyEl().querySelectorAll('[data-ct-accept]')) {
+      btn.onclick = () => {
+        const oid = btn.dataset.ctAccept;
+        const sel = bodyEl().querySelector(`[data-ct-dock="${oid}"]`);
+        const sid = sel ? sel.value : (docks[0] && docks[0].stationId);
+        if (sid) mgr.accept(oid, sid);
+      };
+    }
+    for (const btn of bodyEl().querySelectorAll('[data-ct-cancel]')) {
+      btn.onclick = () => mgr.cancel(btn.dataset.ctCancel);
+    }
   }
 
   // ================= 日志 =================
